@@ -13,9 +13,12 @@
   :author "Pavel Korolev"
   :license "MIT"
   :depends-on (alexandria cl-mecab tesserect drakma jsown cl-autowrap cl-plus-c cffi
-                          flexi-streams log4cl)
+                          flexi-streams log4cl trivial-main-thread
+                          (:feature (:and :ccl :darwin)
+                                    (:require :objc-support)))
   :serial t
   :components ((:file "packages")
                (:file "translation")
                (:file "morph")
-               (:file "vinoyaku")))
+               (:file "vinoyaku")
+               (:file "ccl-application" :if-feature (:and :ccl :darwin))))
