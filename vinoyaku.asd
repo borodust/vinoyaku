@@ -12,8 +12,8 @@
   :version "0.0.1"
   :author "Pavel Korolev"
   :license "MIT"
-  :depends-on (alexandria cl-mecab tesserect drakma jsown cl-autowrap cl-plus-c cffi
-                          flexi-streams log4cl trivial-main-thread
+  :depends-on (alexandria cl-mecab recognizr drakma jsown cl-autowrap cl-plus-c cffi
+                          flexi-streams log4cl trivial-main-thread dissect
                           (:feature (:and :ccl :darwin)
                                     (:require :objc-support)))
   :serial t

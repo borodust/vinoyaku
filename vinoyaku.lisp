@@ -13,17 +13,17 @@
 
 
 (defun preprocess-raw-text (text)
-  (loop for i from 0
-     for ch across text
-     ;; tesseract just can't stop missing this one with default .traineddata
-     when (char= ch #\〈)
-     do (setf (aref text i) #\く))
-  text)
+  (flet ((whitespacep (c) (find c '(#\Space #\Newline #\Tab) :test #'char=)))
+    (loop with text = (delete-if #'whitespacep text)
+       for i from 0
+       for ch across text
+       ;; tesseract just can't stop missing this one with default .traineddata
+       when (char= ch #\〈) do (setf (aref text i) #\く)
+       finally (return text))))
 
 
-(defun explain (context x y width height)
-  (let* ((raw (preprocess-raw-text (tesserect:recognize x y width height)))
+(defun explain (context image)
+  (let* ((raw (preprocess-raw-text (recognizr:recognize image)))
          (translated (translate (translator-of context) raw))
          (syllabograms (syllabograms raw)))
-    (format t "~%~A~%~A~%~A" raw syllabograms translated))
-  (values))
+    (format nil "~A~%~A~%~A" raw syllabograms translated)))
