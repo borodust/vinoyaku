@@ -85,27 +85,25 @@
 
 
 (defun load-bundle ()
-  (objc:with-autoreleased-nsstrings ((path
-                                      "/Users/borodust/Library/Developer/Xcode/DerivedData/vinoyaku-bundle-bpbjtfblpzrqugfkwmqsytqmnsql/Build/Products/Debug/vinoyaku-bundle.bundle"))
-    (let* ((bundle (#/bundleWithPath: (@ ns:ns-bundle) path))
-           (array-ptr (#_malloc (byte-size-of :address))))
-      (unwind-protect
-           (progn
-             (#/loadNibNamed:owner:topLevelObjects: bundle
-                                                    #@"MainMenu"
-                                                    (ns-app)
-                                                    array-ptr)
-             (#/loadNibNamed:owner:topLevelObjects: bundle
-                                                    #@"MainWindow"
-                                                    (ns-app)
-                                                    array-ptr)
-             (#/loadNibNamed:owner:topLevelObjects: bundle
-                                                    #@"CapturePanel"
-                                                    (ns-app)
-                                                    array-ptr))
-        (#_free array-ptr))
-      (log:debug "Bundle loaded: ~A:" (#/bundlePath bundle))
-      bundle)))
+  (let* ((bundle (#/mainBundle (@ ns:ns-bundle)))
+         (array-ptr (#_malloc (byte-size-of :address))))
+    (unwind-protect
+         (progn
+           (#/loadNibNamed:owner:topLevelObjects: bundle
+                                                  #@"MainMenu"
+                                                  (ns-app)
+                                                  array-ptr)
+           (#/loadNibNamed:owner:topLevelObjects: bundle
+                                                  #@"MainWindow"
+                                                  (ns-app)
+                                                  array-ptr)
+           (#/loadNibNamed:owner:topLevelObjects: bundle
+                                                  #@"CapturePanel"
+                                                  (ns-app)
+                                                  array-ptr))
+      (#_free array-ptr))
+    (log:debug "Bundle loaded: ~A:" (#/bundlePath bundle))
+    bundle))
 
 
 (defun windows ()
@@ -150,13 +148,18 @@
   (:metaclass ns:+ns-object))
 
 
+(defun invert-y (y height)
+  (let ((screen-height (ns:ns-rect-height (#/frame (#/mainScreen (@ ns:ns-screen))))))
+    (- screen-height (+ y height))))
+
+
 (objc:defmethod (#/keyDown: :void) ((self capture-responder) (event :id))
   (with-slots (capture-panel rect-consumer) self
     (let* ((content-frame (#/contentRectForFrameRect: capture-panel (#/frame capture-panel)))
-           (screen-height (ns:ns-rect-height (#/frame (#/mainScreen (@ ns:ns-screen)))))
+
            (coords (list (ns:ns-rect-x content-frame)
-                         (- screen-height (+ (ns:ns-rect-y content-frame)
-                                             (ns:ns-rect-height content-frame)))
+                         (invert-y (ns:ns-rect-y content-frame)
+                                   (ns:ns-rect-height content-frame))
                          (ns:ns-rect-width content-frame)
                          (ns:ns-rect-height content-frame))))
       (switch ((#/keyCode event) :test #'=)
@@ -168,9 +171,9 @@
 
 
 (objc:defmethod ("enterCaptureMode:" :void) ((self capture-responder) (sender :id))
-  (declare (ignore sender))
   (with-slots (capture-panel) self
-    (#/runModalForWindow: (ns-app) capture-panel)))
+    (#/makeKeyAndOrderFront: capture-panel sender)
+    #++(#/runModalForWindow: (ns-app) capture-panel)))
 
 
 (defvar *capture-responder* nil)
@@ -219,14 +222,15 @@
         (unless (#/makeFirstResponder: capture-panel *capture-responder*)
           (log:error "Couldn't update first responder for capture window"))
 
-        #++(let ((main-screen-frame (#/frame (#/mainScreen (@ ns:ns-screen)))))
-             (#/setFrame:display: capture-panel main-screen-frame #$NO))
         (dolist (btn (list #$NSWindowCloseButton
                            #$NSWindowMiniaturizeButton
                            #$NSWindowZoomButton))
           (#/setHidden: (#/standardWindowButton: capture-panel btn) #$YES))
 
+        #++(let ((main-screen-frame (#/frame (#/mainScreen (@ ns:ns-screen)))))
+             (#/setFrame:display: capture-panel main-screen-frame #$NO))
         (#/setOpaque: capture-panel #$NO)
+
         (#/setTarget: explain-button *behavior-controller*)
         (#/setAction: explain-button (objc:@selector "explain:"))
 

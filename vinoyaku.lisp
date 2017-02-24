@@ -24,6 +24,10 @@
 
 (defun explain (context image)
   (let* ((raw (preprocess-raw-text (recognizr:recognize image)))
-         (translated (translate (translator-of context) raw))
-         (syllabograms (syllabograms raw)))
+         (syllabograms (syllabograms raw))
+         (translated ""))
+    (handler-case
+        (setf translated (translate (translator-of context) raw))
+      (error (e)
+        (log:error "Couldn't translate text: " e)))
     (format nil "~A~%~A~%~A" raw syllabograms translated)))
