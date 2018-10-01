@@ -1,4 +1,4 @@
-(in-package :vinoyaku)
+(cl:in-package :vinoyaku)
 
 
 (declaim (special *context*))
@@ -23,7 +23,7 @@
 
 
 (defun explain (context image)
-  (let* ((raw (preprocess-raw-text (recognizr:recognize image)))
+  (let* ((raw (preprocess-raw-text ""#++(recognizr:recognize image)))
          (syllabograms (syllabograms raw))
          (translated ""))
     (handler-case

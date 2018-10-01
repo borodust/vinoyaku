@@ -1,8 +1,8 @@
-(in-package :vinoyaku)
+(cl:in-package :vinoyaku)
 
 
-(define-constant +kanji-kana-table+
-    (plist-hash-table
+(alexandria:define-constant +kanji-kana-table+
+    (alexandria:plist-hash-table
      '(#\ア #\あ #\イ #\い #\ウ #\う #\エ #\え #\オ #\お
        #\カ #\か #\キ #\き #\ク #\く #\ケ #\け #\コ #\こ
        #\サ #\さ #\シ #\し #\ス #\す #\セ #\せ #\ソ #\そ
@@ -61,10 +61,10 @@
         (%mecab:lattice-set-sentence lattice foreign-string)
         (%mecab:parse-lattice tagger lattice)
         (let ((head (%mecab:lattice-get-bos-node lattice)))
-          (loop for node-ptr = (autowrap:ptr head) then (c-ref node-ptr %mecab:node-t :next)
-             until (cffi:null-pointer-p node-ptr)
-             do (c-let ((node %mecab:node-t :from node-ptr))
-                  (switch ((node :stat) :test #'=)
+          (loop for node-ptr = (claw:ptr head) then (claw:c-ref node-ptr %mecab:node-t :next)
+             until (claw:null-pointer-p node-ptr)
+             do (claw:c-let ((node %mecab:node-t :from node-ptr))
+                  (alexandria:switch ((node :stat) :test #'=)
                     (%mecab:+bos-node+)
                     (%mecab:+eos-node+)
                     (t (let ((syllabograms (extract-syllabograms

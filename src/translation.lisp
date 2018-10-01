@@ -1,14 +1,14 @@
-(in-package :vinoyaku)
+(cl:in-package :vinoyaku)
 
 
 (defgeneric translate (client text))
 
 
-(define-constant +transltr-api-address+ "http://www.transltr.org/api/"
+(alexandria:define-constant +transltr-api-address+ "http://www.transltr.org/api/"
   :test #'string=)
 
 
-(define-constant +user-agent+ "grateful-transltr-client"
+(alexandria:define-constant +user-agent+ "grateful-transltr-client"
   :test #'string=)
 
 

@@ -1,24 +1,20 @@
-(in-package :cl-user)
+(cl:pushnew :bodge-gl2 *features*)
 
-(defpackage :vinoyaku.def
-  (:use :cl :asdf))
-
-
-(in-package :vinoyaku.def)
-
-
-(defsystem vinoyaku
+(asdf:defsystem vinoyaku
   :description "Tool to assist in VN reading"
-  :version "0.0.1"
+  :version "1.0.0"
   :author "Pavel Korolev"
   :license "MIT"
-  :depends-on (alexandria cl-mecab recognizr drakma jsown cl-autowrap cl-plus-c cffi
-                          flexi-streams log4cl trivial-main-thread dissect
-                          (:feature (:and :ccl :darwin)
-                                    (:require :objc-support)))
+  :depends-on (alexandria mecab-blob bodge-mecab tesseract-blob bodge-tesseract bodge-glad glad-blob
+                          bodge-utilities bodge-host bodge-ui bodge-canvas bodge-canvas-ui
+                          bodge-memory bodge-concurrency
+                          drakma jsown claw flexi-streams log4cl trivial-main-thread dissect opticl)
   :serial t
+  :pathname "src/"
   :components ((:file "packages")
                (:file "translation")
+               (:file "recognition")
                (:file "morph")
                (:file "vinoyaku")
-               (:file "ccl-application" :if-feature (:and :ccl :darwin))))
+               (:file "ui-window")
+               (:file "application")))
