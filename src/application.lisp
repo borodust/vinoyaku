@@ -30,6 +30,26 @@
   (transform-mode-p nil))
 
 
+(defun unpremult (value a)
+  (if (= 0 a)
+      value
+      (floor (min (/ (* 255 value) a) 255))))
+
+
+(defun read-selected-region-into-rgba-image (selection y-offset)
+  (let* ((position (selection-position selection))
+         (x (floor (x position)))
+         (y (floor (+ (y position) y-offset)))
+         (width (floor (selection-width selection)))
+         (height (floor (selection-height selection)))
+         (image (opticl:make-8-bit-rgba-image height width)))
+    (bodge-util:with-simple-array-pointer (ptr image)
+      (bodge-host:read-screen-region x y width height ptr))
+    (opticl:write-png-file "/tmp/test.png" image)
+    (log:info "REGION READ: ~A ~A ~A ~A" x y width height)
+    image))
+
+
 (defun canvas-width ()
   (with-slots (canvas) *window*
     (bodge-canvas:canvas-width canvas)))
@@ -117,6 +137,9 @@
   (:method (state x y) (declare (ignore state x y))))
 (defgeneric on-mouse-action (selection-state button state)
   (:method (selection-state button state) (declare (ignore selection-state button state))))
+(defgeneric on-key-action (selection-state key state)
+  (:method (selection-state button state) (declare (ignore selection-state button state))))
+
 
 
 (defclass selection-window (ui-window)
@@ -173,9 +196,9 @@
 (defmethod on-draw ((this selection-window))
   (with-slots (canvas state) this
     (let ((*window* this))
+      (gl:viewport 0 0 (canvas-width) (canvas-height))
       (gl:clear-color 0.0 0.0 0.0 0.0)
       (gl:clear :color-buffer)
-      (gl:viewport 0 0 (canvas-width) (canvas-height))
       (bodge-canvas:with-canvas (canvas)
         (render-state state)))))
 
@@ -185,6 +208,12 @@
                                      (state (eql :released)))
   (declare (ignore key state))
   (bodge-host:hide-window this))
+
+
+(defmethod bodge-host:on-key-action ((this selection-window) key key-state)
+  (with-slots (state) this
+    (let ((*window* this))
+      (on-key-action state key key-state ))))
 
 
 (defun transition-to (state-class &rest initargs &key &allow-other-keys)
@@ -234,6 +263,16 @@
           (when (intersecting-selection-p selection cursor-position)
             (transition-to 'move-state :selection selection
                                        :cursor-position cursor-position))))))
+
+
+(defmethod on-key-action ((this rest-state)
+                          (key (eql :enter))
+                          (state (eql :pressed)))
+  (declare (ignore key state))
+  (with-slots (selection) this
+    (let ((pos (bodge-host:viewport-position *window*)))
+      (within-rendering-thread (*window*)
+        (read-selected-region-into-rgba-image selection (y pos))))))
 
 
 (defclass move-state (base-state)
