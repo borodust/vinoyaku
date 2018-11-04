@@ -1,33 +1,57 @@
+(cl:defpackage :vinoyaku
+  (:use :cl :vinoyaku.api)
+  (:export #:make-context
+           #:destroy-context
+           #:explain))
 (cl:in-package :vinoyaku)
 
 
 (declaim (special *context*))
 
 
+(bodge-util:define-constant +channels+ 4)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defclass vinoyaku-context ()
-  ((translator :initform (make-instance 'transltr-client) :reader translator-of)))
+  ((recognizer :initarg :recognizer)
+   (analyzer :initarg :analyzer)
+   (translator :initarg :translator)))
 
 
-(defun make-context ()
-  (make-instance 'vinoyaku-context))
+(defmethod initialize-instance :after ((this vinoyaku-context) &key recognizer-class
+                                                                 analyzer-class
+                                                                 translator-class)
+  (with-slots (recognizer analyzer translator) this
+    (setf recognizer (make-instance (or recognizer-class
+                                        (first (list-recognizers))))
+          analyzer (make-instance (or analyzer-class
+                                      (first (list-analyzers))))
+          translator (make-instance (or translator-class
+                                        (first (list-translators)))))
+    (init-recognizer recognizer)
+    (init-analyzer analyzer)
+    (init-translator translator)))
 
 
-(defun preprocess-raw-text (text)
-  (flet ((whitespacep (c) (find c '(#\Space #\Newline #\Tab) :test #'char=)))
-    (loop with text = (delete-if #'whitespacep text)
-       for i from 0
-       for ch across text
-       ;; tesseract just can't stop missing this one with default .traineddata
-       when (char= ch #\〈) do (setf (aref text i) #\く)
-       finally (return text))))
+(defun make-context (&key recognizer-class analyzer-class translator-class)
+  (make-instance 'vinoyaku-context
+                 :recognizer recognizer-class
+                 :analyzer analyzer-class
+                 :translator translator-class))
 
 
-(defun explain (context image)
-  (let* ((raw (preprocess-raw-text ""#++(recognizr:recognize image)))
-         (syllabograms (syllabograms raw))
-         (translated ""))
-    (handler-case
-        (setf translated (translate (translator-of context) raw))
-      (error (e)
-        (log:error "Couldn't translate text: " e)))
-    (format nil "~A~%~A~%~A" raw syllabograms translated)))
+(defun destroy-context (context)
+  (with-slots (recognizer analyzer translator) context
+    (discard-recognizer recognizer)
+    (discard-analyzer analyzer)
+    (discard-translator translator)))
+
+
+(defun explain (context image width height &key (format :rgba))
+  (with-slots (recognizer analyzer translator) context
+    (let* ((raw (recognize recognizer image width height :format format))
+           (morphs (analyze analyzer raw))
+           (translated (translate translator raw)))
+      (values raw morphs translated))))
