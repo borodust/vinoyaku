@@ -67,9 +67,11 @@
                           (state (eql :pressed)))
   (declare (ignore key state))
   (with-slots (selection) this
-    (let ((pos (bodge-host:viewport-position *window*)))
-      (within-rendering-thread (*window*)
-        (read-selected-region-into-rgba-image selection (y pos))))))
+    (let ((pos (bodge-host:viewport-position *window*))
+          (win *window*))
+      (within-rendering-thread (win)
+        (let ((*window* win))
+          (read-selected-region-into-rgba-image selection (y pos)))))))
 
 
 (defclass move-state (base-state)

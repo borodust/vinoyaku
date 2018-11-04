@@ -1,3 +1,3 @@
 (cl:defpackage :vinoyaku.app
-  (:use :cl)
+  (:use :cl :bodge-math)
   (:export #:run))

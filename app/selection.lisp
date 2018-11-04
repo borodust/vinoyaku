@@ -23,8 +23,10 @@
          (image (opticl:make-8-bit-rgba-image height width)))
     (bodge-util:with-simple-array-pointer (ptr image)
       (bodge-host:read-screen-region x y width height ptr))
-    (opticl:write-png-file "/tmp/test.png" image)
-    (log:info "REGION READ: ~A ~A ~A ~A" x y width height)
+    (opticl:with-image-bounds (height width) image
+      (let ((ctx (context-of *window*)))
+        (log:info "Explanation:~&~A" (multiple-value-list
+                                      (vinoyaku:explain ctx image width height)))))
     image))
 
 

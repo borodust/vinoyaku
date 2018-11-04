@@ -4,7 +4,8 @@
 (defclass selection-window (ui-window)
   (canvas
    state
-   (cursor-type :initform nil))
+   (cursor-type :initform nil)
+   (context :initarg :context :reader context-of))
   (:default-initargs
    :title "Selection Window"))
 
