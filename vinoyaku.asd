@@ -72,8 +72,9 @@
   :serial t
   :pathname "app/"
   :components ((:file "packages")
-               (:file "preprocessing")
                (:file "ui-window")
+               (:file "preprocessing")
+               (:file "context")
                (:file "selection")
                (:file "selection-state")
                (:file "selection-window")

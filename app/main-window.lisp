@@ -3,28 +3,27 @@
 (defvar *window-width* 800)
 (defvar *window-height* 600)
 
-(defclass main-window (ui-window)
-  ((vinoyaku-context :initform nil :reader context-of))
+(defclass main-window (ui-window) ()
   (:default-initargs
    :title "びの訳"
    :width *window-width*
    :height *window-height*))
 
 
-(defmethod initialize-instance :after ((this main-window) &key)
-  (with-slots (vinoyaku-context) this
-    (setf vinoyaku-context (vinoyaku:make-context))))
+(defmethod initialize-instance ((this main-window) &rest initargs &key &allow-other-keys)
+  (apply #'call-next-method this :application-context (make-application-context) initargs))
+
+
+(defmethod bodge-host:on-hide ((this main-window))
+  (bodge-host:close-window this))
 
 
 (defmethod bodge-host:on-destroy ((this main-window))
-  (with-slots (vinoyaku-context) this
-    (vinoyaku:destroy-context vinoyaku-context)
-    (setf vinoyaku-context nil)))
+  (destroy-application-context (application-context-of this)))
 
 
 (defmethod on-rendering-context-ready ((this main-window))
-  (with-slots (vinoyaku-context) this
-    (add-window-panel this 'control-panel :context vinoyaku-context)))
+  (add-window-panel this 'control-panel :context (application-context-of this)))
 
 
 (defmethod on-draw ((this main-window))
@@ -34,12 +33,12 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defclass control-panel-state ()
-  ((context :initarg :context :reader context-of)))
+  ((context :initarg :context :reader application-context-of)))
 
 
 (defun open-selection-window (win)
   (bodge-host:open-window (make-instance 'selection-window
-                                         :context (context-of win)
+                                         :application-context (application-context-of win)
                                          :transparent t
                                          :decorated nil
                                          :resizable t

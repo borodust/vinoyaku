@@ -40,7 +40,6 @@
              #++(%tess:base-api-set-variable context "edges_max_children_per_outline" "40"))))))
 
 
-
 (defmethod discard-recognizer :before ((this tesseract-recognizer))
   (with-slots (context) this
     (%tess:base-api-end context)

@@ -1,9 +1,6 @@
 (cl:in-package :vinoyaku.app)
 
 
-(declaim (special *window*))
-
-
 (defgeneric render-state (state)
   (:method (state) (declare (ignore state))))
 
@@ -67,11 +64,19 @@
                           (state (eql :pressed)))
   (declare (ignore key state))
   (with-slots (selection) this
-    (let ((pos (bodge-host:viewport-position *window*))
-          (win *window*))
-      (within-rendering-thread (win)
-        (let ((*window* win))
-          (read-selected-region-into-rgba-image selection (y pos)))))))
+    (let* ((win-pos (bodge-host:viewport-position *window*))
+           (sel-pos (selection-position selection))
+           (x (floor (x sel-pos)))
+           (y (floor (+ (y sel-pos) (y win-pos)))))
+      (update-selected-region (application-context-of *window*)
+                              (bodge-host:window-monitor *window*)
+                              (vec2 x y)
+                              (selection-width selection)
+                              (selection-height selection)))
+    (bodge-host:close-window *window*)))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 (defclass move-state (base-state)
@@ -92,6 +97,9 @@
 (defmethod on-mouse-action ((this move-state) (button (eql :left)) (state (eql :released)))
   (with-slots (selection) this
     (transition-to 'rest-state :selection selection)))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 (defclass resize-state (base-state)

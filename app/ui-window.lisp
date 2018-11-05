@@ -1,6 +1,9 @@
 (cl:in-package :vinoyaku.app)
 
 
+(declaim (special *window*))
+
+
 (defgeneric on-draw (window)
   (:method (window) (declare (ignore window))))
 
@@ -10,12 +13,15 @@
 
 
 (defclass ui-window (bodge-host:window)
-  ((nk-context :initform nil)
+  ((application-context :initarg :application-context :reader application-context-of
+                        :initform (error ":application-context missing"))
+   (nk-context :initform nil)
    (nk-renderer :initform nil)
    (enabled-p :initform t)
    (mouse-actions :initform (list))
    (cursor-position :initform (bodge-math:vec2))
-   (context-queue :initform (bodge-concurrency:make-task-queue)))
+   (context-queue :initform (bodge-concurrency:make-task-queue))
+   (exit-latch :initform (mt:make-latch)))
   (:default-initargs :opengl-version '(2 1)))
 
 
@@ -63,8 +69,9 @@
     (tagbody begin
        (restart-case
            (loop while enabled-p
-                 do (bodge-concurrency:drain context-queue)
-                    (render-ui window))
+                 do (let ((*window* window))
+                      (render-ui window)
+                      (bodge-concurrency:drain context-queue)))
          (continue-rendering ()
            :report "Restart rendering loop"
            (setf enabled-p t)
@@ -77,7 +84,7 @@
 
 
 (defun start-rendering-thread (window)
-  (with-slots (nk-context nk-renderer enabled-p) window
+  (with-slots (nk-context nk-renderer exit-latch) window
     (bodge-concurrency:in-new-thread ("rendering-thread")
       (unwind-protect
            (progn
@@ -87,7 +94,7 @@
              (unwind-protect
                   (run-rendering-loop window)
                (release-ui window)))
-        (bodge-host:close-window window)))))
+        (mt:open-latch exit-latch)))))
 
 
 (defmethod bodge-host:on-init :around ((this ui-window))
@@ -97,15 +104,10 @@
   (call-next-method))
 
 
-(defmethod bodge-host:on-hide :around ((this ui-window))
-  (with-slots (enabled-p) this
-    (setf enabled-p nil))
-  (call-next-method))
-
-
 (defmethod bodge-host:on-destroy :around ((this ui-window))
-  (with-slots (enabled-p) this
-    (setf enabled-p nil))
+  (with-slots (enabled-p exit-latch) this
+    (setf enabled-p nil)
+    (mt:wait-for-latch exit-latch))
   (call-next-method))
 
 
