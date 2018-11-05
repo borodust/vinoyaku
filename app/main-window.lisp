@@ -45,10 +45,32 @@
                                          :floating t)))
 
 
+(defun scan-selected-region (win)
+  (read-selected-region-into-rgba-image (application-context-of win)))
+
+
+(defclass peephole (bodge-ui:custom-widget) ())
+
+
+(defmethod bodge-ui:custom-widget-height ((this peephole))
+  458)
+
+
+(defmethod bodge-ui:render-custom-widget ((this peephole) origin width height)
+  (bodge-canvas:draw-rect origin width height
+                          :fill-paint (vec4 (+ (* (sin (bodge-util:real-time-seconds)) 0.4) 0.5)
+                                            (+ (* (cos (bodge-util:real-time-seconds)) 0.4) 0.5)
+                                            (+ (* (cos (bodge-util:real-time-seconds)) 0.4) 0.5)
+                                            1) :rounding 4))
+
+
 (bodge-ui:defwindow (control-panel
-                     (:title "YO")
-                     (:origin 50 100)
-                     (:width 400) (:height 72)
-                     (:options :movable)
+                     (:origin 50 50)
+                     (:width 700) (:height 500)
+                     (:options :headerless)
                      (:inherit control-panel-state))
-  (bodge-ui:button :label "HI" :on-click #'open-selection-window))
+  (bodge-ui:horizontal-layout
+   (bodge-ui:button :label "Scan" :on-click #'scan-selected-region)
+   (bodge-ui:button :label "Select" :on-click #'open-selection-window)
+   (bodge-ui:button :label "Options"))
+  (peephole))

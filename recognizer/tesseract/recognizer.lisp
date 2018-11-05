@@ -31,13 +31,13 @@
       (bodge-util:with-locale ("C")
         (setf context (%tess:base-api-create))
         (assert (= 0 (%tess:base-api-init3 context nil "jpn")))
-        #++(progn
-             (%tess:base-api-set-variable context "chop_enable" "T")
-             (%tess:base-api-set-variable context "use_new_state_cost" "F")
-             (%tess:base-api-set-variable context "enable_new_segsearch" "0")
-             #++(%tess:base-api-set-variable context "language_model_ngram_on" "0")
-             #++(%tess:base-api-set-variable context "textord_force_make_prop_words" "F")
-             #++(%tess:base-api-set-variable context "edges_max_children_per_outline" "40"))))))
+        (progn
+          (%tess:base-api-set-variable context "chop_enable" "T")
+          (%tess:base-api-set-variable context "use_new_state_cost" "F")
+          (%tess:base-api-set-variable context "enable_new_segsearch" "0")
+          #++(%tess:base-api-set-variable context "language_model_ngram_on" "0")
+          #++(%tess:base-api-set-variable context "textord_force_make_prop_words" "F")
+          #++(%tess:base-api-set-variable context "edges_max_children_per_outline" "40"))))))
 
 
 (defmethod discard-recognizer :before ((this tesseract-recognizer))

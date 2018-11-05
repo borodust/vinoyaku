@@ -33,3 +33,19 @@
                                                 :origin origin
                                                 :width width
                                                 :height height))))
+
+
+
+(defun read-selected-region-into-rgba-image (context)
+  (with-slots (vinoyaku selected-region) context
+    (when selected-region
+      (let* ((origin (selected-region-origin selected-region))
+             (width (floor (selected-region-width selected-region)))
+             (height (floor (selected-region-height selected-region)))
+             (image (opticl:make-8-bit-rgba-image height width)))
+        (bodge-util:with-simple-array-pointer (ptr image)
+          (bodge-host:read-screen-region (floor (x origin)) (floor (y origin))
+                                         width height ptr))
+        (log:info "Explanation:~&~A" (multiple-value-list
+                                      (vinoyaku:explain vinoyaku image width height)))
+        image))))

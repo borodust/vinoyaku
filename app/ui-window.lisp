@@ -15,8 +15,9 @@
 (defclass ui-window (bodge-host:window)
   ((application-context :initarg :application-context :reader application-context-of
                         :initform (error ":application-context missing"))
-   (nk-context :initform nil)
-   (nk-renderer :initform nil)
+   (canvas :initform nil :reader canvas-of)
+   (ui-context :initform nil)
+   (ui-renderer :initform nil)
    (enabled-p :initform t)
    (mouse-actions :initform (list))
    (cursor-position :initform (bodge-math:vec2))
@@ -35,8 +36,8 @@
 
 
 (defun add-window-panel (window panel-class &rest initargs &key &allow-other-keys)
-  (with-slots (nk-context) window
-    (apply #'bodge-ui:add-window nk-context panel-class initargs)))
+  (with-slots (ui-context) window
+    (apply #'bodge-ui:add-window ui-context panel-class initargs)))
 
 
 (defun setup-rendering-context (window)
@@ -46,21 +47,23 @@
 
 
 (defun initialize-ui (window)
-  (with-slots (nk-context nk-renderer) window
-    (setf nk-renderer (bodge-canvas-ui:make-renderer *window-width* *window-height*)
-          nk-context (bodge-ui:make-ui nk-renderer :input-source window))))
+  (with-slots (ui-context ui-renderer canvas) window
+    (setf canvas (bodge-canvas:make-canvas *window-width* *window-height*)
+          ui-renderer (bodge-canvas-ui:make-renderer canvas)
+          ui-context (bodge-ui:make-ui ui-renderer :input-source window))))
 
 
 (defun release-ui (window)
-  (with-slots (nk-context nk-renderer) window
-    (bodge-memory:dispose nk-context)
-    (bodge-canvas-ui:destroy-renderer nk-renderer)))
+  (with-slots (ui-context ui-renderer canvas) window
+    (bodge-memory:dispose ui-context)
+    (bodge-canvas-ui:destroy-renderer ui-renderer)
+    (bodge-canvas:destroy-canvas canvas)))
 
 
 (defun render-ui (window)
-  (with-slots (nk-context) window
+  (with-slots (ui-context) window
     (on-draw window)
-    (bodge-ui:compose-ui nk-context)
+    (bodge-ui:compose-ui ui-context)
     (bodge-host:swap-buffers window)))
 
 
@@ -84,7 +87,7 @@
 
 
 (defun start-rendering-thread (window)
-  (with-slots (nk-context nk-renderer exit-latch) window
+  (with-slots (ui-context ui-renderer exit-latch) window
     (bodge-concurrency:in-new-thread ("rendering-thread")
       (unwind-protect
            (progn
@@ -98,7 +101,7 @@
 
 
 (defmethod bodge-host:on-init :around ((this ui-window))
-  (with-slots (nk-context nk-renderer enabled-p) this
+  (with-slots (ui-context ui-renderer enabled-p) this
     (setf enabled-p t)
     (start-rendering-thread this))
   (call-next-method))

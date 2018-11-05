@@ -14,22 +14,6 @@
       (floor (min (/ (* 255 value) a) 255))))
 
 
-(defun read-selected-region-into-rgba-image (selection y-offset)
-  (let* ((position (selection-position selection))
-         (x (floor (x position)))
-         (y (floor (+ (y position) y-offset)))
-         (width (floor (selection-width selection)))
-         (height (floor (selection-height selection)))
-         (image (opticl:make-8-bit-rgba-image height width)))
-    (bodge-util:with-simple-array-pointer (ptr image)
-      (bodge-host:read-screen-region x y width height ptr))
-    (opticl:with-image-bounds (height width) image
-      (let ((ctx (context-of *window*)))
-        (log:info "Explanation:~&~A" (multiple-value-list
-                                      (vinoyaku:explain ctx image width height)))))
-    image))
-
-
 (defun canvas-width ()
   (with-slots (canvas) *window*
     (bodge-canvas:canvas-width canvas)))
