@@ -61,8 +61,9 @@
 
 
 (defun render-ui (window)
-  (with-slots (ui-context) window
-    (on-draw window)
+  (with-slots (ui-context canvas) window
+    (bodge-canvas:with-canvas (canvas)
+      (on-draw window))
     (bodge-ui:compose-ui ui-context)
     (bodge-host:swap-buffers window)))
 
@@ -125,6 +126,12 @@
     (setf (bodge-math:x cursor-position) x
           (bodge-math:y cursor-position) y))
   (call-next-method))
+
+
+(defmethod bodge-host:on-viewport-size-change :around ((this ui-window) width height)
+  (with-slots (canvas) this
+    (within-rendering-thread (this)
+      (bodge-canvas:update-canvas-size canvas width height))))
 
 
 (defmethod bodge-ui:next-mouse-interaction ((this ui-window))

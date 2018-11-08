@@ -3,7 +3,7 @@
 (cl:in-package :vinoyaku.recognizer.tesseract)
 
 
-(bodge-util:define-constant +tesseract-prefix+
+(bodge-util:define-constant +tesseract-directory+
     (namestring (asdf:system-relative-pathname :vinoyaku/recognizer/tesseract
                                                "recognizer/tesseract/"))
   :test #'equal)
@@ -14,30 +14,19 @@
   ((context :initform nil)))
 
 
-(defmacro with-tessdata-prefix ((prefix) &body body)
-  (bodge-util:with-gensyms (envar)
-    `(let ((,envar (or (uiop:getenv "TESSDATA_PREFIX") "./")))
-       (unwind-protect
-            (progn
-              (setf (uiop:getenv "TESSDATA_PREFIX") ,prefix)
-              ,@body)
-         (setf (uiop:getenv "TESSDATA_PREFIX") ,envar)))))
-
-
 (defmethod init-recognizer :after ((this tesseract-recognizer))
   (with-slots (context) this
     ;; setlocale in baseapi.c https://github.com/tesseract-ocr/tesseract/issues/1670
-    (with-tessdata-prefix (+tesseract-prefix+)
-      (bodge-util:with-locale ("C")
-        (setf context (%tess:base-api-create))
-        (assert (= 0 (%tess:base-api-init3 context nil "jpn")))
-        (progn
-          (%tess:base-api-set-variable context "chop_enable" "T")
-          (%tess:base-api-set-variable context "use_new_state_cost" "F")
-          (%tess:base-api-set-variable context "enable_new_segsearch" "0")
-          #++(%tess:base-api-set-variable context "language_model_ngram_on" "0")
-          #++(%tess:base-api-set-variable context "textord_force_make_prop_words" "F")
-          #++(%tess:base-api-set-variable context "edges_max_children_per_outline" "40"))))))
+    (bodge-util:with-locale ("C")
+      (setf context (%tess:base-api-create))
+      (cffi:with-foreign-string (tess-conf-path (namestring
+                                                 (merge-pathnames "tess.conf" +tesseract-directory+)))
+        (claw:c-with ((tess-configs :pointer :count 1))
+          (setf (tess-configs 0) tess-conf-path)
+          (assert (= 0 (%tess:base-api-init1 context
+                                             +tesseract-directory+ "jpn" %tess:+oem-tesseract-only+
+                                             (tess-configs &) 1)))
+          (%tess:base-api-set-page-seg-mode context %tess:+psm-single-block+))))))
 
 
 (defmethod discard-recognizer :before ((this tesseract-recognizer))
@@ -47,9 +36,23 @@
     (setf context nil)))
 
 
+(defun get-tess-string-variable (context name)
+  (cffi:with-foreign-string (foreign-name name)
+    (cffi:foreign-string-to-lisp (%tess:base-api-get-string-variable context foreign-name))))
+
+
+(defun get-tess-int-variable (context name)
+  (cffi:with-foreign-string (foreign-name name)
+    (claw:c-with ((value :int))
+      (%tess:base-api-get-int-variable context foreign-name (value &))
+      value)))
+
+
 (defmethod recognize ((this tesseract-recognizer) image width height &key (format :rgba))
   (with-slots (context) this
     ;; setlocale in baseapi.c https://github.com/tesseract-ocr/tesseract/issues/1670
+    (%tess:base-api-get-available-languages-as-vector context)
+    (log:info "~A" (get-tess-int-variable context "edges_max_children_per_outline"))
     (claw:with-float-traps-masked ()
       (bodge-util:with-locale ("C")
         (let ((bytes-per-pixel (ecase format

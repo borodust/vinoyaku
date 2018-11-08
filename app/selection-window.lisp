@@ -2,8 +2,7 @@
 
 
 (defclass selection-window (ui-window)
-  (canvas
-   state
+  (state
    (cursor-type :initform nil)
    (context :initarg :context :reader context-of))
   (:default-initargs
@@ -22,9 +21,8 @@
 
 
 (defmethod on-rendering-context-ready ((this selection-window))
-  (with-slots (canvas state) this
-    (setf canvas (bodge-canvas:make-canvas 640 480)
-          state (make-instance 'rest-state :selection (make-selection)))))
+  (with-slots (state) this
+    (setf state (make-instance 'rest-state :selection (make-selection)))))
 
 
 (defmethod bodge-host:on-init ((this selection-window))
@@ -33,12 +31,6 @@
     (setf (bodge-host:viewport-position this) (bodge-host:monitor-position monitor)
           (bodge-host:viewport-size this) (vec2 (bodge-host:video-mode-width video-mode)
                                                 (bodge-host:video-mode-height video-mode)))))
-
-
-(defmethod bodge-host:on-viewport-size-change ((this selection-window) width height)
-  (with-slots (canvas) this
-    (within-rendering-thread (this)
-      (bodge-canvas:update-canvas-size canvas width height))))
 
 
 (defmethod bodge-host:on-cursor-movement ((this selection-window) x y)
@@ -56,13 +48,12 @@
 
 
 (defmethod on-draw ((this selection-window))
-  (with-slots (canvas state) this
+  (with-slots (state) this
     (let ((*window* this))
       (gl:viewport 0 0 (canvas-width) (canvas-height))
       (gl:clear-color 0.0 0.0 0.0 0.0)
       (gl:clear :color-buffer)
-      (bodge-canvas:with-canvas (canvas)
-        (render-state state)))))
+      (render-state state))))
 
 
 (defmethod bodge-host:on-key-action ((this selection-window)
