@@ -3,7 +3,8 @@
 (defvar *window-width* 800)
 (defvar *window-height* 600)
 
-(defclass main-window (ui-window) ()
+(defclass main-window (ui-window)
+  ((scan-paint :initform nil :reader scan-paint-of))
   (:default-initargs
    :title "びの訳"
    :width *window-width*
@@ -32,22 +33,33 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defclass control-panel-state ()
-  ((context :initarg :context :reader application-context-of)))
-
-
-(defun open-selection-window (win)
+(defun open-selection-window (panel)
+  (declare (ignore panel))
   (bodge-host:open-window (make-instance 'selection-window
-                                         :application-context (application-context-of win)
+                                         :application-context (application-context-of *window*)
                                          :transparent t
                                          :decorated nil
                                          :resizable t
                                          :floating t)))
 
 
-(defun scan-selected-region (win)
-  (read-selected-region-into-rgba-image (application-context-of win)))
+(defun scan-selected-region (panel)
+  (declare (ignore panel))
+  (with-slots (scan-paint) *window*
+    (let* ((win *window*)
+           (ctx (application-context-of win)))
+      (bodge-host:progm
+        (read-selected-region ctx)
+        (within-rendering-thread (win)
+          (let ((image (region-image-of ctx)))
+            (opticl:with-image-bounds (height width) image
+              (when scan-paint
+                (bodge-canvas:destroy-image-paint (canvas-of win) scan-paint))
+              (setf scan-paint (bodge-canvas:make-rgba-image-paint (canvas-of win)
+                                                                   image width height)))))))))
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defclass peephole (bodge-ui:custom-widget) ())
 
@@ -57,18 +69,25 @@
 
 
 (defmethod bodge-ui:render-custom-widget ((this peephole) origin width height)
-  (bodge-canvas:draw-rect origin width height
-                          :fill-paint (vec4 (+ (* (sin (bodge-util:real-time-seconds)) 0.4) 0.5)
-                                            (+ (* (cos (bodge-util:real-time-seconds)) 0.4) 0.5)
-                                            (+ (* (cos (bodge-util:real-time-seconds)) 0.4) 0.5)
-                                            1) :rounding 4))
+  (let* ((amp 0.3)
+         (cos (+ (* (cos (bodge-util:real-time-seconds)) amp) 0.5))
+         (sin (+ (* (sin (bodge-util:real-time-seconds)) amp) 0.5))
+         (r sin)
+         (g cos)
+         (b (/ sin cos)))
+    (bodge-canvas:draw-rect origin width height
+                            :fill-paint (alexandria:if-let ((paint (scan-paint-of *window*)))
+                                          paint
+                                          (vec4 r g b 1))
+                            :rounding 4)))
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (bodge-ui:defwindow (control-panel
                      (:origin 50 50)
                      (:width 700) (:height 500)
-                     (:options :headerless)
-                     (:inherit control-panel-state))
+                     (:options :headerless))
   (bodge-ui:horizontal-layout
    (bodge-ui:button :label "Scan" :on-click #'scan-selected-region)
    (bodge-ui:button :label "Select" :on-click #'open-selection-window)
