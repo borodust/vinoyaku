@@ -56,6 +56,7 @@
 (defun explain-context-image (ctx)
   (with-slots (vinoyaku image) ctx
     (when image
-      (opticl:with-image-bounds (height width) image
-        (log:info "Explanation:~&~A" (multiple-value-list
-                                      (vinoyaku:explain vinoyaku image width height)))))))
+      (let ((preprocessed (preprocess-image image)))
+        (opticl:with-image-bounds (height width) preprocessed
+          (log:info "Explanation:~&~A" (multiple-value-list
+                                        (vinoyaku:explain vinoyaku preprocessed width height))))))))

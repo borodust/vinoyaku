@@ -51,12 +51,15 @@
       (bodge-host:progm
         (read-selected-region ctx)
         (within-rendering-thread (win)
-          (let ((image (region-image-of ctx)))
-            (opticl:with-image-bounds (height width) image
+          (let* ((image (region-image-of ctx))
+                 (preprocessed (opticl:coerce-image (preprocess-image image)
+                                                    'opticl-core:8-bit-rgba-image)))
+            (opticl:with-image-bounds (height width) preprocessed
               (when scan-paint
                 (bodge-canvas:destroy-image-paint (canvas-of win) scan-paint))
               (setf scan-paint (bodge-canvas:make-rgba-image-paint (canvas-of win)
-                                                                   image width height)))))))))
+                                                                   preprocessed width height
+                                                                   :flip-vertically t)))))))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
