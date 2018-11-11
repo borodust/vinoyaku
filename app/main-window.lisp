@@ -44,16 +44,15 @@
 
 
 (defun scan-selected-region (panel)
-  (declare (ignore panel))
   (with-slots (scan-paint) *window*
     (let* ((win *window*)
            (ctx (application-context-of win)))
       (bodge-host:progm
         (read-selected-region ctx)
         (within-rendering-thread (win)
-          (let* ((image (region-image-of ctx))
-                 (preprocessed (opticl:coerce-image (preprocess-image image)
-                                                    'opticl-core:8-bit-rgba-image)))
+          (alexandria:when-let* ((image (region-image-of ctx))
+                                 (preprocessed (opticl:coerce-image (preprocess-image image)
+                                                                    'opticl-core:8-bit-rgba-image)))
             (opticl:with-image-bounds (height width) preprocessed
               (when scan-paint
                 (bodge-canvas:destroy-image-paint (canvas-of win) scan-paint))
@@ -68,7 +67,10 @@
 
 
 (defmethod bodge-ui:custom-widget-height ((this peephole))
-  458)
+  (alexandria:when-let ((image (region-image-of (application-context-of *window*))))
+    (opticl:with-image-bounds (height width) image
+      (declare (ignore width))
+      height)))
 
 
 (defmethod bodge-ui:render-custom-widget ((this peephole) origin width height)
@@ -78,11 +80,15 @@
          (r sin)
          (g cos)
          (b (/ sin cos)))
-    (bodge-canvas:draw-rect origin width height
-                            :fill-paint (alexandria:if-let ((paint (scan-paint-of *window*)))
-                                          paint
-                                          (vec4 r g b 1))
-                            :rounding 4)))
+    (alexandria:if-let ((image (region-image-of (application-context-of *window*))))
+      (opticl:with-image-bounds (height width) image
+        (bodge-canvas:draw-image origin width height (scan-paint-of *window*)
+                                 :rounding 4
+                                 :scale-x 1/4
+                                 :scale-y 1/4))
+      (bodge-canvas:draw-rect origin width height
+                              :fill-paint (vec4 r g b 1)
+                              :rounding 4))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -95,4 +101,9 @@
    (bodge-ui:button :label "Scan" :on-click #'scan-selected-region)
    (bodge-ui:button :label "Select" :on-click #'open-selection-window)
    (bodge-ui:button :label "Options"))
+  (bodge-ui:horizontal-layout
+   (bodge-ui:label :text "Background:")
+   (bodge-ui:text-edit)
+   (bodge-ui:label :text "Cutout:")
+   (bodge-ui:text-edit))
   (peephole))

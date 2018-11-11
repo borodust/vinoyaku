@@ -21,7 +21,7 @@
       average)))
 
 
-(defun preprocess-image (image)
+(defun preprocess-image (image &optional (background-threshold 160) (cutout-threshold 128))
   (declare (optimize (speed 3) (safety 0) (debug 0)))
   (let* ((transform (opticl:make-affine-transformation :x-scale 4.0 :y-scale 4.0))
          (grayscale (opticl:transform-image
@@ -29,9 +29,12 @@
                       (opticl:coerce-image image 'opticl-core:8-bit-gray-image))
                      transform :interpolate :bilinear)))
     (declare (type opticl-core:8-bit-gray-image grayscale))
-    (let ((dark-background-p (< (mid-luminosity grayscale) 128)))
+    (let* ((mid-luminosity (mid-luminosity grayscale))
+           (dark-background-p (< mid-luminosity background-threshold)))
+      (log:info "~A" (mid-luminosity grayscale))
       (opticl:do-pixels (i j) grayscale
         (let* ((raw-lum (opticl:pixel grayscale i j))
                (lum (if dark-background-p (- 255 raw-lum) raw-lum)))
-          (setf (opticl:pixel grayscale i j) (if (> lum 128) 255 0)))))
+          (setf (opticl:pixel grayscale i j) (if (< lum cutout-threshold) 0 255)
+                ))))
     grayscale))
