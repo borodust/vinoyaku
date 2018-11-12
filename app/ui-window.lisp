@@ -21,6 +21,8 @@
    (enabled-p :initform t)
    (mouse-actions :initform (list))
    (cursor-position :initform (bodge-math:vec2))
+   (characters :initform (make-array 0 :adjustable t :fill-pointer 0 :element-type 'character))
+   (keys :initform (make-array 0 :adjustable t :fill-pointer 0 :element-type 'cons))
    (context-queue :initform (bodge-concurrency:make-task-queue))
    (exit-latch :initform (mt:make-latch)))
   (:default-initargs :opengl-version '(2 1)))
@@ -146,3 +148,26 @@
     (setf (bodge-math:x result-vec2) (bodge-math:x cursor-position)
           (bodge-math:y result-vec2) (bodge-math:y cursor-position))
     result-vec2))
+
+
+(defmethod bodge-host:on-character-input ((this ui-window) (character character))
+  (with-slots (characters) this
+    (vector-push-extend character characters)))
+
+
+(defmethod bodge-ui:next-character ((this ui-window))
+  (with-slots (characters) this
+    (unless (alexandria:emptyp characters)
+      (vector-pop characters))))
+
+
+(defmethod bodge-host:on-key-action ((this ui-window) key state)
+  (with-slots (keys) this
+    (vector-push-extend (cons key state) keys)))
+
+
+(defmethod bodge-ui:next-keyboard-interaction ((this ui-window))
+  (with-slots (keys) this
+    (unless (alexandria:emptyp keys)
+      (destructuring-bind (key . state) (vector-pop keys)
+        (values key state)))))
