@@ -1,5 +1,7 @@
 (cl:in-package :vinoyaku.app)
 
+(declaim (special *window*))
+
 
 (defclass selection-window (ui-window)
   (state
@@ -20,7 +22,7 @@
                 cursor-type cursor))))))
 
 
-(defmethod on-rendering-context-ready ((this selection-window))
+(defmethod bodge-ui-window:on-ui-ready ((this selection-window))
   (with-slots (state) this
     (setf state (make-instance 'rest-state :selection (make-selection)))))
 
@@ -47,7 +49,7 @@
        (on-mouse-action state button button-state)))))
 
 
-(defmethod on-draw ((this selection-window))
+(defmethod bodge-ui-window:on-draw ((this selection-window))
   (with-slots (state) this
     (let ((*window* this))
       (gl:viewport 0 0 (canvas-width) (canvas-height))

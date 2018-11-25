@@ -67,8 +67,8 @@
                           vinoyaku
                           bodge-utilities bodge-memory bodge-concurrency
                           glad-blob bodge-glad
-                          bodge-host bodge-ui bodge-canvas bodge-canvas-ui
-                          claw flexi-streams log4cl trivial-main-thread dissect opticl)
+                          bodge-host bodge-ui bodge-canvas bodge-ui-window
+                          parse-number claw flexi-streams log4cl trivial-main-thread dissect opticl)
   :serial t
   :pathname "app/"
   :components ((:file "packages")
@@ -78,5 +78,9 @@
                (:file "selection")
                (:file "selection-state")
                (:file "selection-window")
+               (:module "widget"
+                :serial t
+                :components ((:file "peephole")
+                             (:file "histogram")))
                (:file "main-window")
                (:file "application")))
