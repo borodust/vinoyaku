@@ -15,13 +15,11 @@
 
 
 (defun canvas-width ()
-  (with-slots (canvas) *window*
-    (bodge-canvas:canvas-width canvas)))
+  (bodge-canvas:canvas-width (bodge-ui-window:ui-window-canvas *window*)))
 
 
 (defun canvas-height ()
-  (with-slots (canvas) *window*
-    (bodge-canvas:canvas-height canvas)))
+  (bodge-canvas:canvas-height (bodge-ui-window:ui-window-canvas *window*)))
 
 
 (defun draw-background (position width height)

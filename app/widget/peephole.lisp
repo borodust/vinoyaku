@@ -5,7 +5,7 @@
 
 
 (defmethod bodge-ui:custom-widget-height ((this peephole))
-  (alexandria:when-let ((image (region-image-of (application-context-of *window*))))
+  (alexandria:when-let ((image (region-image-of (application-context-of (root-window)))))
     (opticl:with-image-bounds (height width) image
       (declare (ignore width))
       height)))
@@ -18,9 +18,9 @@
          (r sin)
          (g cos)
          (b (/ sin cos)))
-    (alexandria:if-let ((image (region-image-of (application-context-of *window*))))
+    (alexandria:if-let ((image (region-image-of (application-context-of (root-window)))))
       (opticl:with-image-bounds (height width) image
-        (bodge-canvas:draw-image origin width height (scan-paint-of *window*)
+        (bodge-canvas:draw-image origin width height (scan-paint-of (root-window))
                                  :rounding 4
                                  :scale-x 1/4
                                  :scale-y 1/4))

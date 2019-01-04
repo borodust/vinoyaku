@@ -74,7 +74,7 @@
 
 (defclass histogram-threshold ()
   ((color :initform (vec4 0.9 0.3 0.3 0.7))
-   (value :initform 0.5)
+   (value :initform 0.02)
    (highlighted :initform nil :accessor histogram-threshold-highlighted-p)))
 
 
@@ -157,6 +157,11 @@
     (render-histogram-array array origin width height)
     (render-histogram-selection selection origin height)
     (render-histogram-threshold threshold origin width height)))
+
+
+(defun update-histogram-array (histogram array)
+  (with-slots ((histogram-array array)) histogram
+    (setf (array-of histogram-array) array)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

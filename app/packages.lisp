@@ -1,8 +1,8 @@
-(cl:defpackage :vinoyaku.app.histogram
+(uiop:define-package :vinoyaku.app.histogram
   (:use :cl :bodge-math)
   (:export #:histogram
-           #:histogram-array))
+           #:update-histogram-array))
 
-(cl:defpackage :vinoyaku.app
+(uiop:define-package :vinoyaku.app
   (:use :cl :bodge-math :vinoyaku.app.histogram)
   (:export #:run))
