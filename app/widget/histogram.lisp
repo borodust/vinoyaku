@@ -2,6 +2,7 @@
 
 
 (alexandria:define-constant +selection-border-size+ 4)
+(alexandria:define-constant +threshold-border-value+ 0.025)
 
 
 (defclass histogram-selection ()
@@ -30,19 +31,22 @@
 
 
 (defun histogram-selection-adjust-start (selection offset)
-  (with-slots (start) selection
-    (incf start offset)))
+  (with-slots (end start) selection
+    (let ((target (+ start offset)))
+      (when (< target end)
+        (setf start target)))))
 
 
 (defun histogram-selection-adjust-end (selection offset)
-  (with-slots (end) selection
-    (incf end offset)))
+  (with-slots (end start) selection
+    (let ((target (+ end offset)))
+      (when (> target start)
+        (setf end target)))))
 
 
 (defun histogram-selection-move (selection offset)
   (histogram-selection-adjust-start selection offset)
   (histogram-selection-adjust-end selection offset))
-
 
 
 (defun render-histogram-selection (selection offset height)
@@ -65,6 +69,36 @@
       (bodge-canvas:draw-line region-end
                               (add region-end (vec2 0 height))
                               border-color))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defclass histogram-threshold ()
+  ((color :initform (vec4 0.9 0.3 0.3 0.7))
+   (value :initform 0.5)
+   (highlighted :initform nil :accessor histogram-threshold-highlighted-p)))
+
+
+(defun render-histogram-threshold (threshold offset width height)
+  (with-slots (value color highlighted) threshold
+    (let ((threshold-height (* height value))
+          (final-color (if highlighted
+                           (add color (vec4 0.1 -0.3 -0.3 0.3))
+                           color)))
+      (bodge-canvas:draw-line (add offset (vec2 0 threshold-height))
+                              (add offset (vec2 width threshold-height))
+                              final-color
+                              :thickness 1.5))))
+
+
+(defun histogram-threshold-intersects (threshold value)
+  (with-slots ((current-value value)) threshold
+    (let ((half (/ +threshold-border-value+ 2)))
+      (<= (- current-value half) value (+ current-value half)))))
+
+
+(defun histogram-threshold-adjust (threshold offset)
+  (with-slots (value) threshold
+    (incf value offset)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -106,7 +140,8 @@
 
 (defclass histogram (bodge-ui:custom-widget)
   ((array :initform (make-instance 'histogram-array) :reader %array-of)
-   (selection :initform (make-instance 'histogram-selection) :reader %selection-of)))
+   (selection :initform (make-instance 'histogram-selection) :reader %selection-of)
+   (threshold :initform (make-instance 'histogram-threshold) :reader %threshold-of)))
 
 
 (defmethod initialize-instance :after ((this histogram) &key)
@@ -118,52 +153,66 @@
 
 
 (defmethod bodge-ui:render-custom-widget ((this histogram) origin width height)
-  (with-slots (array selection state) this
+  (with-slots (array selection state threshold) this
     (render-histogram-array array origin width height)
-    (render-histogram-selection selection origin height)))
+    (render-histogram-selection selection origin height)
+    (render-histogram-threshold threshold origin width height)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defclass rest-state ()
   ((selection-highlighted-p :initform nil)
-   (offset :initform 0)))
+   (threshold-highlighted-p :initform nil)
+   (offset-x :initform 0)
+   (offset-y :initform 0)))
 
 
 (defmethod bodge-ui:custom-widget-on-mouse-press ((this rest-state) button)
-  (with-slots (selection-highlighted-p offset) this
-    (when selection-highlighted-p
-      (let ((selection (%selection-of (bodge-ui:custom-widget-instance))))
-        (cond
-          ((histogram-selection-intersects-left-border selection offset)
-           (bodge-ui:transition-custom-widget-to (bodge-ui:custom-widget-instance) 'adjust-start-state :offset offset))
-          ((histogram-selection-intersects-right-border selection offset)
-           (bodge-ui:transition-custom-widget-to (bodge-ui:custom-widget-instance) 'adjust-end-state :offset offset))
-          (t (bodge-ui:transition-custom-widget-to (bodge-ui:custom-widget-instance) 'move-state :offset offset)))))))
+  (with-slots (selection-highlighted-p threshold-highlighted-p offset-x offset-y) this
+    (let ((widget (bodge-ui:custom-widget-instance)))
+      (when selection-highlighted-p
+        (let ((selection (%selection-of widget)))
+          (cond
+            ((histogram-selection-intersects-left-border selection offset-x)
+             (bodge-ui:transition-custom-widget-to widget 'adjust-selection-start-state :offset offset-x))
+            ((histogram-selection-intersects-right-border selection offset-x)
+             (bodge-ui:transition-custom-widget-to widget 'adjust-selection-end-state :offset offset-x))
+            (t (bodge-ui:transition-custom-widget-to widget 'move-selection-state :offset offset-x)))))
+      (when threshold-highlighted-p
+        (bodge-ui:transition-custom-widget-to widget 'adjust-threshold-state :offset (/ offset-y (bodge-ui:custom-widget-height widget)))))))
 
 
 (defmethod bodge-ui:custom-widget-on-move ((this rest-state) x y)
-  (declare (ignore y))
-  (with-slots (selection-highlighted-p offset) this
-    (let ((selection (%selection-of (bodge-ui:custom-widget-instance))))
+  (with-slots (selection-highlighted-p threshold-highlighted-p offset-x offset-y) this
+    (let* ((widget (bodge-ui:custom-widget-instance))
+           (selection (%selection-of widget))
+           (threshold (%threshold-of widget)))
       (setf selection-highlighted-p (histogram-selection-intersects-body selection x)
             (histogram-selection-highlighted-p selection) selection-highlighted-p
-            offset x))))
+            threshold-highlighted-p (histogram-threshold-intersects threshold (/ y (bodge-ui:custom-widget-height widget)))
+            (histogram-threshold-highlighted-p threshold) threshold-highlighted-p
+            offset-x x
+            offset-y y))))
 
 
 (defmethod bodge-ui:custom-widget-on-leave ((this rest-state))
-  (with-slots (selection-highlighted-p) this
-    (let ((selection (%selection-of (bodge-ui:custom-widget-instance))))
+  (with-slots (selection-highlighted-p threshold-highlighted-p) this
+    (let* ((widget (bodge-ui:custom-widget-instance))
+           (selection (%selection-of widget))
+           (threshold (%threshold-of widget)))
       (setf selection-highlighted-p nil
-            (histogram-selection-highlighted-p selection) nil))))
+            (histogram-selection-highlighted-p selection) nil
+            threshold-highlighted-p nil
+            (histogram-threshold-highlighted-p threshold) nil))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defclass move-state ()
+(defclass move-selection-state ()
   ((current-offset :initarg :offset :initform 0)))
 
 
-(defmethod bodge-ui:custom-widget-on-move ((this move-state) x y)
+(defmethod bodge-ui:custom-widget-on-move ((this move-selection-state) x y)
   (declare (ignore y))
   (with-slots (current-offset) this
     (let ((selection (%selection-of (bodge-ui:custom-widget-instance))))
@@ -171,20 +220,20 @@
       (setf current-offset x))))
 
 
-(defmethod bodge-ui:custom-widget-on-mouse-release ((this move-state) button)
+(defmethod bodge-ui:custom-widget-on-mouse-release ((this move-selection-state) button)
   (bodge-ui:transition-custom-widget-to (bodge-ui:custom-widget-instance) 'rest-state))
 
 
-(defmethod bodge-ui:custom-widget-on-leave ((this move-state))
+(defmethod bodge-ui:custom-widget-on-leave ((this move-selection-state))
   (bodge-ui:transition-custom-widget-to (bodge-ui:custom-widget-instance) 'rest-state))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defclass adjust-start-state ()
+(defclass adjust-selection-start-state ()
   ((offset :initarg :offset :initform 0)))
 
 
-(defmethod bodge-ui:custom-widget-on-move ((this adjust-start-state) x y)
+(defmethod bodge-ui:custom-widget-on-move ((this adjust-selection-start-state) x y)
   (declare (ignore y))
   (with-slots (offset) this
     (let ((selection (%selection-of (bodge-ui:custom-widget-instance))))
@@ -192,20 +241,20 @@
       (setf offset x))))
 
 
-(defmethod bodge-ui:custom-widget-on-leave ((this adjust-start-state))
+(defmethod bodge-ui:custom-widget-on-leave ((this adjust-selection-start-state))
   (bodge-ui:transition-custom-widget-to (bodge-ui:custom-widget-instance) 'rest-state))
 
 
-(defmethod bodge-ui:custom-widget-on-mouse-release ((this adjust-start-state) button)
+(defmethod bodge-ui:custom-widget-on-mouse-release ((this adjust-selection-start-state) button)
   (bodge-ui:transition-custom-widget-to (bodge-ui:custom-widget-instance) 'rest-state))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defclass adjust-end-state ()
+(defclass adjust-selection-end-state ()
   ((offset :initarg :offset :initform 0)))
 
 
-(defmethod bodge-ui:custom-widget-on-move ((this adjust-end-state) x y)
+(defmethod bodge-ui:custom-widget-on-move ((this adjust-selection-end-state) x y)
   (declare (ignore y))
   (with-slots (offset) this
     (let ((selection (%selection-of (bodge-ui:custom-widget-instance))))
@@ -213,11 +262,37 @@
       (setf offset x))))
 
 
-(defmethod bodge-ui:custom-widget-on-mouse-release ((this adjust-end-state) button)
+(defmethod bodge-ui:custom-widget-on-mouse-release ((this adjust-selection-end-state) button)
   (bodge-ui:transition-custom-widget-to (bodge-ui:custom-widget-instance) 'rest-state))
 
 
-(defmethod bodge-ui:custom-widget-on-leave ((this adjust-end-state))
+(defmethod bodge-ui:custom-widget-on-leave ((this adjust-selection-end-state))
+  (bodge-ui:transition-custom-widget-to (bodge-ui:custom-widget-instance) 'rest-state))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defclass adjust-threshold-state ()
+  ((offset :initarg :offset :initform 0)))
+
+
+(defmethod bodge-ui:custom-widget-on-move ((this adjust-threshold-state) x y)
+  (declare (ignore x))
+  (with-slots (offset) this
+    (let* ((widget (bodge-ui:custom-widget-instance))
+           (threshold (%threshold-of widget))
+           (new-offset (/ y (bodge-ui:custom-widget-height widget))))
+      (histogram-threshold-adjust threshold (- new-offset offset))
+      (setf offset new-offset))))
+
+
+(defmethod bodge-ui:custom-widget-on-mouse-release ((this adjust-threshold-state) button)
+  (bodge-ui:transition-custom-widget-to (bodge-ui:custom-widget-instance) 'rest-state))
+
+
+(defmethod bodge-ui:custom-widget-on-leave ((this adjust-threshold-state))
   (bodge-ui:transition-custom-widget-to (bodge-ui:custom-widget-instance) 'rest-state))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
