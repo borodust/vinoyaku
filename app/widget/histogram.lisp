@@ -137,16 +137,23 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-
 (defclass histogram (bodge-ui:custom-widget)
   ((array :initform (make-instance 'histogram-array) :reader %array-of)
    (selection :initform (make-instance 'histogram-selection) :reader %selection-of)
    (threshold :initform (make-instance 'histogram-threshold) :reader %threshold-of)
-   (last-width :initform 0)))
+   (last-width :initform 0)
+   (on-parameter-change :initform nil :initarg :on-parameter-change)))
 
 
 (defmethod initialize-instance :after ((this histogram) &key)
-  (bodge-ui:transition-custom-widget-to this 'rest-state))
+  (bodge-ui:transition-custom-widget-to this 'rest-state :init-p t))
+
+
+(defun %invoke-parameter-change-listener (histogram)
+  (with-slots (on-parameter-change) histogram
+    (when on-parameter-change
+      (multiple-value-bind (from to) (histogram-bounds histogram)
+        (funcall on-parameter-change (bodge-ui:root-panel) (histogram-threshold histogram) from to)))))
 
 
 (defmethod bodge-ui:custom-widget-height ((this histogram))
@@ -177,7 +184,8 @@
           (width (max last-width 1)))
       (flet ((%scale (value)
                (floor (* (/ value width) length))))
-        (values (%scale (%start-of selection)) (%scale (%end-of selection)))))))
+        (values (max (%scale (%start-of selection)) 0)
+                (min (%scale (%end-of selection)) (- length 1)))))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -187,6 +195,11 @@
    (threshold-highlighted-p :initform nil)
    (offset-x :initform 0)
    (offset-y :initform 0)))
+
+
+(defmethod initialize-instance :after ((this rest-state) &key init-p)
+  (unless init-p
+    (%invoke-parameter-change-listener (bodge-ui:custom-widget-instance))))
 
 
 (defmethod bodge-ui:custom-widget-on-mouse-press ((this rest-state) button)

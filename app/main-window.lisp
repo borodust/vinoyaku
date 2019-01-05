@@ -52,32 +52,41 @@
                                          :floating t)))
 
 
+(defun update-peephole (panel threshold from to)
+  (let* ((win (window-of panel))
+         (ctx (application-context-of win))
+         (mask (make-foreground-mask (histo-of ctx) threshold from to))
+         (preprocessed (preprocess-image (grayscale-image-of ctx) mask)))
+    (let ((preprocessed-rgba (opticl:coerce-image preprocessed
+                                                  'opticl-core:8-bit-rgba-image))
+          (canvas (bodge-ui-window:ui-window-canvas win))
+          (scan-paint (scan-paint-of win)))
+      (opticl:with-image-bounds (height width) preprocessed-rgba
+        (when scan-paint
+          (bodge-canvas:destroy-image-paint canvas scan-paint))
+        (setf (scan-paint-of win) (bodge-canvas:make-rgba-image-paint canvas
+                                                                      preprocessed-rgba
+                                                                      width height
+                                                                      :flip-vertically t))))))
+
+
 (defun scan-selected-region (panel)
   (let* ((histogram-widget (bodge-ui:find-element :histogram panel))
          (win (window-of panel))
-         (ctx (application-context-of win))
-         (scan-paint (scan-paint-of win)))
+         (ctx (application-context-of win)))
     (multiple-value-bind (bound-start bound-end) (histogram-bounds histogram-widget)
       (bodge-host:progm
         (read-selected-region ctx (bodge-host:viewport-scale win))
         (bodge-ui-window:within-ui-thread (win)
-          (alexandria:when-let* ((image (region-image-of ctx)))
-            (let* ((grayscale (prepare-image image))
-                   (histo (analyze-image grayscale))
-                   (mask (make-foreground-mask histo (histogram-threshold histogram-widget)
-                                               bound-start bound-end))
-                   (preprocessed (preprocess-image grayscale mask )))
-              (update-histogram-array histogram-widget histo)
-              (let ((preprocessed (opticl:coerce-image preprocessed
-                                                       'opticl-core:8-bit-rgba-image))
-                    (canvas (bodge-ui-window:ui-window-canvas win)))
-                (opticl:with-image-bounds (height width) preprocessed
-                  (when scan-paint
-                    (bodge-canvas:destroy-image-paint canvas scan-paint))
-                  (setf (scan-paint-of win) (bodge-canvas:make-rgba-image-paint canvas
-                                                                                preprocessed width height
-                                                                                :flip-vertically t)))))))))))
+          (alexandria:when-let* ((grayscale (grayscale-image-of ctx)))
+            (update-histogram-array histogram-widget (histo-of ctx))
+            (update-peephole panel
+                             (histogram-threshold histogram-widget)
+                             bound-start bound-end)))))))
 
+(defun update-preview (panel threshold from to)
+  (log:info "~A" (list threshold from to))
+  (update-peephole panel threshold from to))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -122,5 +131,5 @@
    (bodge-ui:button :label "Scan" :on-click #'scan-selected-region)
    (bodge-ui:button :label "Select" :on-click #'open-selection-window)
    (bodge-ui:button :label "Options"))
-  (histogram :name :histogram)
+  (histogram :name :histogram :on-parameter-change #'update-preview)
   (peephole))
