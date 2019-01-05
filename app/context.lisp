@@ -36,21 +36,19 @@
                                                 :height height))))
 
 
-(defun read-selected-region (ctx)
+(defun read-selected-region (ctx scale)
   (with-slots (selected-region image) ctx
     (when selected-region
-      (let ((origin (selected-region-origin selected-region))
-             (width (floor (selected-region-width selected-region)))
-             (height (floor (selected-region-height selected-region))))
+      (let ((origin (mult (selected-region-origin selected-region) scale))
+            (width (floor (* (selected-region-width selected-region) scale)))
+            (height (floor (* (selected-region-height selected-region) scale))))
         (flet ((same-bounds ()
                  (when image
                    (opticl:with-image-bounds (current-height current-width) image
                      (and (= width current-width) (= current-height height))))))
           (unless (same-bounds)
             (setf image (opticl:make-8-bit-rgba-image height width))))
-        (bodge-util:with-simple-array-pointer (ptr image)
-          (bodge-host:read-screen-region (floor (x origin)) (floor (y origin))
-                                         width height ptr))))))
+        (bodge-host:read-screen-region (x origin) (y origin) width height image)))))
 
 
 (defun explain (ctx image)

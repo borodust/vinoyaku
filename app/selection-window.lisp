@@ -52,9 +52,8 @@
 (defmethod bodge-ui-window:on-draw ((this selection-window))
   (with-slots (state) this
     (let ((*window* this))
-      (gl:viewport 0 0 (canvas-width) (canvas-height))
-      (gl:clear-color 0.0 0.0 0.0 0.0)
-      (gl:clear :color-buffer)
+      (bodge-canvas:clear-buffers (vec4))
+      (bodge-canvas:reset-viewport)
       (render-state state))))
 
 

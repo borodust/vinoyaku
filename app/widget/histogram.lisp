@@ -8,8 +8,8 @@
 (defclass histogram-selection ()
   ((background-color :initform (vec4 0.8 0.8 0 0.08))
    (border-color :initform (vec4 0.8 0.8 0 0.7))
-   (start :initform 10)
-   (end :initform 100)
+   (start :initform 10 :reader %start-of)
+   (end :initform 100 :reader %end-of)
    (highlighted :initform nil :accessor histogram-selection-highlighted-p)))
 
 
@@ -74,7 +74,7 @@
 
 (defclass histogram-threshold ()
   ((color :initform (vec4 0.9 0.3 0.3 0.7))
-   (value :initform 0.02)
+   (value :initform 0.01 :reader %value-of)
    (highlighted :initform nil :accessor histogram-threshold-highlighted-p)))
 
 
@@ -98,10 +98,10 @@
 
 (defun histogram-threshold-adjust (threshold offset)
   (with-slots (value) threshold
-    (incf value offset)))
+    (incf value offset)
+    (alexandria:maxf value 0)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 
 (defclass histogram-array ()
   ((array :initform #() :accessor array-of)
@@ -141,7 +141,8 @@
 (defclass histogram (bodge-ui:custom-widget)
   ((array :initform (make-instance 'histogram-array) :reader %array-of)
    (selection :initform (make-instance 'histogram-selection) :reader %selection-of)
-   (threshold :initform (make-instance 'histogram-threshold) :reader %threshold-of)))
+   (threshold :initform (make-instance 'histogram-threshold) :reader %threshold-of)
+   (last-width :initform 0)))
 
 
 (defmethod initialize-instance :after ((this histogram) &key)
@@ -153,15 +154,30 @@
 
 
 (defmethod bodge-ui:render-custom-widget ((this histogram) origin width height)
-  (with-slots (array selection state threshold) this
+  (with-slots (array selection state threshold last-width) this
     (render-histogram-array array origin width height)
     (render-histogram-selection selection origin height)
-    (render-histogram-threshold threshold origin width height)))
+    (render-histogram-threshold threshold origin width height)
+    (setf last-width width)))
 
 
 (defun update-histogram-array (histogram array)
   (with-slots ((histogram-array array)) histogram
     (setf (array-of histogram-array) array)))
+
+
+(defun histogram-threshold (histogram)
+  (with-slots (threshold) histogram
+    (%value-of threshold)))
+
+
+(defun histogram-bounds (histogram)
+  (with-slots (array selection last-width) histogram
+    (let ((length (length (array-of array)))
+          (width (max last-width 1)))
+      (flet ((%scale (value)
+               (floor (* (/ value width) length))))
+        (values (%scale (%start-of selection)) (%scale (%end-of selection)))))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

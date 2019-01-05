@@ -57,21 +57,26 @@
          (win (window-of panel))
          (ctx (application-context-of win))
          (scan-paint (scan-paint-of win)))
-    (bodge-host:progm
-      (read-selected-region ctx)
-      (bodge-ui-window:within-ui-thread (win)
-        (alexandria:when-let* ((image (region-image-of ctx)))
-          (multiple-value-bind (preprocessed histo) (preprocess-image image)
-            (update-histogram-array histogram-widget histo)
-            (let ((preprocessed (opticl:coerce-image preprocessed
-                                                     'opticl-core:8-bit-rgba-image))
-                  (canvas (bodge-ui-window:ui-window-canvas win)))
-              (opticl:with-image-bounds (height width) preprocessed
-                (when scan-paint
-                  (bodge-canvas:destroy-image-paint canvas scan-paint))
-                (setf (scan-paint-of win) (bodge-canvas:make-rgba-image-paint canvas
-                                                                              preprocessed width height
-                                                                              :flip-vertically t))))))))))
+    (multiple-value-bind (bound-start bound-end) (histogram-bounds histogram-widget)
+      (bodge-host:progm
+        (read-selected-region ctx (bodge-host:viewport-scale win))
+        (bodge-ui-window:within-ui-thread (win)
+          (alexandria:when-let* ((image (region-image-of ctx)))
+            (let* ((grayscale (prepare-image image))
+                   (histo (analyze-image grayscale))
+                   (mask (make-foreground-mask histo (histogram-threshold histogram-widget)
+                                               bound-start bound-end))
+                   (preprocessed (preprocess-image grayscale mask )))
+              (update-histogram-array histogram-widget histo)
+              (let ((preprocessed (opticl:coerce-image preprocessed
+                                                       'opticl-core:8-bit-rgba-image))
+                    (canvas (bodge-ui-window:ui-window-canvas win)))
+                (opticl:with-image-bounds (height width) preprocessed
+                  (when scan-paint
+                    (bodge-canvas:destroy-image-paint canvas scan-paint))
+                  (setf (scan-paint-of win) (bodge-canvas:make-rgba-image-paint canvas
+                                                                                preprocessed width height
+                                                                                :flip-vertically t)))))))))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
