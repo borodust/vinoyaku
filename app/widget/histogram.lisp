@@ -74,7 +74,7 @@
 
 (defclass histogram-threshold ()
   ((color :initform (vec4 0.9 0.3 0.3 0.7))
-   (value :initform 0.01 :reader %value-of)
+   (value :initform 0.00 :reader %value-of)
    (highlighted :initform nil :accessor histogram-threshold-highlighted-p)))
 
 

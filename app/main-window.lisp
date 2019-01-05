@@ -52,10 +52,10 @@
                                          :floating t)))
 
 
-(defun update-peephole (panel threshold from to)
+(defun update-peephole (panel threshold from to &optional invert)
   (let* ((win (window-of panel))
          (ctx (application-context-of win))
-         (mask (make-foreground-mask (histo-of ctx) threshold from to))
+         (mask (make-foreground-mask (histo-of ctx) threshold from to invert))
          (preprocessed (preprocess-image (grayscale-image-of ctx) mask)))
     (let ((preprocessed-rgba (opticl:coerce-image preprocessed
                                                   'opticl-core:8-bit-rgba-image))
@@ -77,16 +77,30 @@
     (multiple-value-bind (bound-start bound-end) (histogram-bounds histogram-widget)
       (bodge-host:progm
         (read-selected-region ctx (bodge-host:viewport-scale win))
-        (bodge-ui-window:within-ui-thread (win)
-          (alexandria:when-let* ((grayscale (grayscale-image-of ctx)))
+        (alexandria:when-let* ((grayscale (grayscale-image-of ctx)))
+          (bodge-ui-window:within-ui-thread (win)
             (update-histogram-array histogram-widget (histo-of ctx))
             (update-peephole panel
                              (histogram-threshold histogram-widget)
                              bound-start bound-end)))))))
 
+
 (defun update-preview (panel threshold from to)
-  (log:info "~A" (list threshold from to))
-  (update-peephole panel threshold from to))
+  (let* ((group (bodge-ui:find-element :ground-switch))
+         (active-ground (bodge-ui:name-of (bodge-ui:active-radio-button-of group))))
+    (update-peephole panel threshold from to (eq active-ground :background))))
+
+
+(defun switch-background (panel active-button)
+  (let* ((histogram-widget (bodge-ui:find-element :histogram panel))
+         (win (window-of panel))
+         (ctx (application-context-of win)))
+    (alexandria:when-let ((grayscale (grayscale-image-of ctx)))
+      (multiple-value-bind (bound-start bound-end) (histogram-bounds histogram-widget)
+        (update-peephole panel
+                         (histogram-threshold histogram-widget)
+                         bound-start bound-end (and active-button
+                                                    (eq (bodge-ui:name-of active-button) :background)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -131,5 +145,10 @@
    (bodge-ui:button :label "Scan" :on-click #'scan-selected-region)
    (bodge-ui:button :label "Select" :on-click #'open-selection-window)
    (bodge-ui:button :label "Options"))
+  (bodge-ui:radio-group
+   :name :ground-switch :on-change #'switch-background
+   (bodge-ui:horizontal-layout
+    (bodge-ui:radio :name :foreground :label "Foreground" :activated t)
+    (bodge-ui:radio :name :background :label "Background")))
   (histogram :name :histogram :on-parameter-change #'update-preview)
   (peephole))

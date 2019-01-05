@@ -12,12 +12,12 @@
     histo))
 
 
-(defun make-foreground-mask (histo threshold from to)
-  (let* ((mask (make-array (length histo) :element-type 'boolean :initial-element nil))
+(defun make-foreground-mask (histo threshold from to &optional invert)
+  (let* ((mask (make-array (length histo) :element-type 'boolean :initial-element invert))
          (max-value (* (reduce #'max histo) threshold)))
     (loop for i from from upto (or to (1- (length histo)))
           when (>= (aref histo i) max-value)
-            do (setf (aref mask i) t))
+            do (setf (aref mask i) (not invert)))
     mask))
 
 
