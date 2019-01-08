@@ -13,6 +13,7 @@
    (selected-region :initform nil :reader selected-region-of)
    (image :initform nil :accessor region-image-of)
    (grayscale :initform nil :accessor grayscale-image-of)
+   (processed :initform nil :accessor processed-image-of)
    (histo :initform nil :accessor histo-of)))
 
 
@@ -55,9 +56,9 @@
               histo (analyze-image grayscale))))))
 
 
-(defun explain (ctx image)
-  (with-slots (vinoyaku) ctx
-    (when image
-      (opticl:with-image-bounds (height width) image
+(defun explain (ctx)
+  (with-slots (vinoyaku processed) ctx
+    (when processed
+      (opticl:with-image-bounds (height width) processed
         (log:info "Explanation:~&~A" (multiple-value-list
-                                      (vinoyaku:explain vinoyaku image width height)))))))
+                                      (vinoyaku:explain vinoyaku processed width height)))))))

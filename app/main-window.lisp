@@ -42,6 +42,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
+(defun explain-it (panel)
+  (declare (ignore panel))
+  (explain (application-context-of (root-window))))
+
+
 (defun open-selection-window (panel)
   (declare (ignore panel))
   (let ((win (root-window)))
@@ -70,7 +75,8 @@
         (setf (scan-paint-of win) (bodge-canvas:make-rgba-image-paint canvas
                                                                       preprocessed-rgba
                                                                       width height
-                                                                      :flip-vertically t))))))
+                                                                      :flip-vertically t)
+              (processed-image-of ctx) preprocessed-rgba)))))
 
 
 (defun scan-selected-region (panel)
@@ -145,6 +151,7 @@
                     (:options :headerless)
                     (:inherit main-panel-model))
   (bodge-ui:horizontal-layout
+   (bodge-ui:button :label "Explain" :on-click #'explain-it)
    (bodge-ui:button :label "Scan" :on-click #'scan-selected-region)
    (bodge-ui:button :label "Select" :on-click #'open-selection-window)
    (bodge-ui:button :label "Options"))
