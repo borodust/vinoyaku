@@ -1,7 +1,7 @@
 (cl:in-package :vinoyaku.app)
 
-(defparameter *window-width* (* 800 2.6))
-(defparameter *window-height* (* 600 2.6))
+(defparameter *window-width* (* 800 #++ 2.6))
+(defparameter *window-height* (* 600 #++ 2.6))
 
 (defclass main-window (ui-window)
   ((scan-paint :initform nil :accessor scan-paint-of))
@@ -44,12 +44,15 @@
 
 (defun open-selection-window (panel)
   (declare (ignore panel))
-  (bodge-host:open-window (make-instance 'selection-window
-                                         :application-context (application-context-of (root-window))
-                                         :transparent t
-                                         :decorated nil
-                                         :resizable t
-                                         :floating t)))
+  (let ((win (root-window)))
+    (bodge-host:progm
+      (let* ((monitor (bodge-host:window-monitor win))
+             (video-mode (bodge-host:monitor-video-mode monitor)))
+        (bodge-host:open-window (make-instance 'selection-window
+                                               :application-context (application-context-of win)
+                                               :position (vec2 0 0)
+                                               :width (bodge-host:video-mode-width video-mode)
+                                               :height (bodge-host:video-mode-height video-mode)))))))
 
 
 (defun update-peephole (panel threshold from to &optional invert)

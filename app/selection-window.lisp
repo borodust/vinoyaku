@@ -4,11 +4,15 @@
 
 
 (defclass selection-window (ui-window)
-  (state
+  ((state :initform nil)
    (cursor-type :initform nil)
    (context :initarg :context :reader context-of))
   (:default-initargs
-   :title "Selection Window"))
+   :title "Selection Window"
+   :transparent t
+   :decorated nil
+   ;;   :resizable t
+   :floating t))
 
 
 (defun set-cursor (cursor)
@@ -25,14 +29,6 @@
 (defmethod bodge-ui-window:on-ui-ready ((this selection-window))
   (with-slots (state) this
     (setf state (make-instance 'rest-state :selection (make-selection)))))
-
-
-(defmethod bodge-host:on-init ((this selection-window))
-  (let* ((monitor (bodge-host:window-monitor this))
-         (video-mode (bodge-host:monitor-video-mode monitor)))
-    (setf (bodge-host:viewport-position this) (bodge-host:monitor-position monitor)
-          (bodge-host:viewport-size this) (vec2 (bodge-host:video-mode-width video-mode)
-                                                (bodge-host:video-mode-height video-mode)))))
 
 
 (defmethod bodge-host:on-cursor-movement ((this selection-window) x y)
