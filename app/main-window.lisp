@@ -1,7 +1,7 @@
 (cl:in-package :vinoyaku.app)
 
-(defparameter *window-width* (* 800 #++ 2.6))
-(defparameter *window-height* (* 600 #++ 2.6))
+(defparameter *window-width* 800)
+(defparameter *window-height* 600)
 
 (defclass main-window (ui-window)
   ((scan-paint :initform nil :accessor scan-paint-of))
@@ -87,7 +87,7 @@
       (bodge-host:progm
         (read-selected-region ctx (bodge-host:viewport-scale win))
         (alexandria:when-let* ((grayscale (grayscale-image-of ctx)))
-          (bodge-ui-window:within-ui-thread (win)
+          (bodge-ui-window:within-rendering-thread (win)
             (update-histogram-array histogram-widget (histo-of ctx))
             (update-peephole panel
                              (histogram-threshold histogram-widget)
